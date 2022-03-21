@@ -6,9 +6,7 @@
 # 00000 Nome1
 # 00000 Nome2
 
-import sys
-from search import Problem, Node, astar_search, breadth_first_tree_search, depth_first_tree_search, greedy_search, recursive_best_first_search
-import numpy as np
+from src.lib.search import Problem, Node
 
 
 class NumbrixState:
@@ -113,5 +111,5 @@ class Numbrix(Problem):
 
 
 if __name__ == "__main__":
-    board = Board.parse_instance("tests_numbrix_public_v1.0/tests_final_public/input1.txt")
+    board = Board.parse_instance("../tests/input1.txt")
     print("Initial:\n", board.to_string(), sep="")
