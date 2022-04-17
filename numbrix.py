@@ -6,9 +6,10 @@
 # 00000 Nome1
 # 00000 Nome2
 
-from lib.search import Problem, Node, astar_search, breadth_first_tree_search, depth_first_tree_search, greedy_search, \
+from search import Problem, Node, astar_search, breadth_first_tree_search, depth_first_tree_search, greedy_search, \
 	recursive_best_first_search
 from copy import deepcopy
+from sys import argv
 
 
 class NumbrixState:
@@ -184,9 +185,6 @@ class Numbrix(Problem):
 		board_copy.board_repr = deepcopy(state.board.board_repr)
 		board_copy.filled = deepcopy(state.board.filled)
 
-		if (action == 0):
-			return NumbrixState(board_copy)
-
 		new_state = NumbrixState(board_copy, (action[0], action[1]), action[2])
 		new_state.board.board_repr[action[0]][action[1]] = action[2]
 		return new_state
@@ -196,7 +194,7 @@ class Numbrix(Problem):
 		um estado objetivo. Deve verificar se todas as posições do tabuleiro
 		estão preenchidas com uma sequência de números adjacentes. """
 
-		# print(state.board.to_string())
+		# Last value hasn't been but
 		if state.value != state.board.n ** 2:
 			return False
 
@@ -210,6 +208,7 @@ class Numbrix(Problem):
 
 				adj_values = state.board.adjacent_horizontal_numbers(row, col) + state.board.adjacent_vertical_numbers(
 					row, col)
+
 				if value == 1 and value + 1 in adj_values:
 					continue
 
@@ -224,35 +223,16 @@ class Numbrix(Problem):
 	def h(self, node: Node) -> int:
 		""" Função heuristica utilizada para a procura A*. """
 
-		if node.state.position is None:
-			return 0
-
-		row = node.action[0]
-		col = node.action[1]
-		value = node.action[2]
-		heuristic = 2
-
-		adj_values = board.adjacent_vertical_numbers(row, col) + board.adjacent_horizontal_numbers(row, col)
-
-		for var in adj_values:
-			if value + 1 == var or value - 1 == var:
-				heuristic -= 1
-
-		if (value == 1 or value == board.n ** 2) and heuristic == 1:
-			heuristic = 0
-
-		return heuristic
+		return (node.state.board.n ** 2 - node.state.value) * (1.0 + 1 / node.state.board.n ** 2)
 
 
 # TODO: outros metodos da classe
 
-
 if __name__ == "__main__":
-	board = Board.parse_instance("../tests/input2.txt")
-	print("Initial:\n", board.to_string(), sep="")
+	board = Board.parse_instance(argv[1])
+	# print("Initial:\n", board.to_string(), sep="")
 	# print(board.filled)
 
 	problem = Numbrix(board)
-
-	goal_node = depth_first_tree_search(problem)
-	print(goal_node.state.board.to_string())
+	goal_node = astar_search(problem)
+	print(goal_node.state.board.to_string(), end='')
