@@ -182,8 +182,10 @@ class Numbrix(Problem):
 
 		# Copy
 		board_copy = Board(board.n)
-		board_copy.board_repr = deepcopy(state.board.board_repr)
-		board_copy.filled = deepcopy(state.board.filled)
+		#board_copy.board_repr = deepcopy(state.board.board_repr)
+		board_copy.board_repr = [x[:] for x in state.board.board_repr] # copy
+		#board_copy.filled = deepcopy(state.board.filled)
+		board_copy.filled = [x[:] for x in state.board.filled] # copy
 
 		new_state = NumbrixState(board_copy, (action[0], action[1]), action[2])
 		new_state.board.board_repr[action[0]][action[1]] = action[2]
