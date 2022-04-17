@@ -115,11 +115,12 @@ class Numbrix(Problem):
 		""" Retorna uma lista de ações que podem ser executadas a
 		partir do estado passado como argumento. """
 
-		if len(state.board.filled) != 0:
-			next_filled = state.board.filled[0]
-		else:
-			next_filled = None
 		next_value = state.value + 1
+		next_filled = None
+		for x in state.board.filled:
+			if(x[2] >= next_value):
+				next_filled = x
+				break
 
 		actions = []
 
@@ -127,7 +128,6 @@ class Numbrix(Problem):
 		if next_value == 1:
 			# 1 is already on the board
 			if next_filled[2] == next_value:
-				state.board.filled.pop(0)
 				return [next_filled]
 
 			for line in state.board.board_repr:
@@ -153,7 +153,6 @@ class Numbrix(Problem):
 			if next_filled is not None and next_filled[2] == next_value:
 				# In adjacent position
 				if (next_filled[0], next_filled[1]) in adj_positions:
-					state.board.filled.pop(0)
 					actions.append(next_filled)
 
 			else:
@@ -182,10 +181,8 @@ class Numbrix(Problem):
 
 		# Copy
 		board_copy = Board(board.n)
-		#board_copy.board_repr = deepcopy(state.board.board_repr)
 		board_copy.board_repr = [x[:] for x in state.board.board_repr] # copy
-		#board_copy.filled = deepcopy(state.board.filled)
-		board_copy.filled = [x[:] for x in state.board.filled] # copy
+		board_copy.filled = state.board.filled
 
 		new_state = NumbrixState(board_copy, (action[0], action[1]), action[2])
 		new_state.board.board_repr[action[0]][action[1]] = action[2]
