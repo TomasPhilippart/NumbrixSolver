@@ -8,17 +8,14 @@
 
 from search import Problem, Node, astar_search, breadth_first_tree_search, depth_first_tree_search, greedy_search, \
 	recursive_best_first_search
-from copy import deepcopy
 from sys import argv
-
 
 class NumbrixState:
 	state_id = 0
 
-	def __init__(self, board, position=None, value=0):
-		self.position = position
-		self.value = value
+	def __init__(self, board, action=None):
 		self.board = board
+		self.action = action
 		self.id = NumbrixState.state_id
 		NumbrixState.state_id += 1
 
@@ -32,30 +29,28 @@ class NumbrixState:
 class Board:
 	""" Representação interna de um tabuleiro de Numbrix. """
 
-	def __init__(self, n: int):
-		self.n = n
+	def __init__(self):
 		self.board_repr = []
-		self.filled = []
+		self.filled = {}
 
 	def get_number(self, row: int, col: int) -> int:
 		""" Devolve o valor na respetiva posição do tabuleiro. """
 		return self.board_repr[row][col]
 
 	def get_adjacent_positions(self, row: int, col: int) -> [(int, int)]:
+		n = len(self.board_repr)
 		adjacent_positions = [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]
-		valid_adjacent_positions = []
-
-		for position in adjacent_positions:
-			if (position[0] in range(0, self.n) and position[1] in range(0, self.n)):
-				valid_adjacent_positions.append(position)
-		return valid_adjacent_positions
+		return [pos for pos in adjacent_positions if
+				pos[0] in range(n) and
+				pos[1] in range(n) and
+				self.board_repr[pos[0]][pos[1]] == 0]
 
 	def adjacent_vertical_numbers(self, row: int, col: int) -> (int, int):
 		""" Devolve os valores imediatamente abaixo e acima,
 		respectivamente. """
-		if (row == 0):
+		if row == 0:
 			return (None, self.board_repr[row + 1][col])
-		elif (row == self.n - 1):
+		elif row == len(self.board_repr) - 1:
 			return (self.board_repr[row - 1][col], None)
 		else:
 			return (self.board_repr[row - 1][col], self.board_repr[row + 1][col])
@@ -63,9 +58,9 @@ class Board:
 	def adjacent_horizontal_numbers(self, row: int, col: int) -> (int, int):
 		""" Devolve os valores imediatamente à esquerda e à direita,
 		respectivamente. """
-		if (col == 0):
+		if col == 0:
 			return (None, self.board_repr[row][col + 1])
-		elif (col == self.n - 1):
+		elif col == len(self.board_repr) - 1:
 			return (self.board_repr[row][col - 1], None)
 		else:
 			return (self.board_repr[row][col - 1], self.board_repr[row][col + 1])
@@ -77,20 +72,22 @@ class Board:
 
 		# Read file
 		with open(filename, "r") as f:
-			board = Board(int(f.readline()))
+			board = Board()
+			n = int(f.readline())
 			for line in f:
 				board.board_repr.append(list(map(int, line.rstrip("\n").split("\t"))))
 
 		# Get filled positions
+		aux = {}
 		for line in board.board_repr:
 			for value in line:
 				if value != 0:
 					row = board.board_repr.index(line)
 					col = line.index(value)
-					board.filled.append((row, col, value))
+					aux[value] = (row, col)
 
-		# Sort by value
-		board.filled.sort(key=lambda e: e[2])
+		for key in sorted(aux):
+			board.filled[key] = aux[key]
 
 		return board
 
@@ -115,62 +112,54 @@ class Numbrix(Problem):
 		""" Retorna uma lista de ações que podem ser executadas a
 		partir do estado passado como argumento. """
 
-		next_value = state.value + 1
-		next_filled = None
-		for x in state.board.filled:
-			if(x[2] >= next_value):
-				next_filled = x
-				break
-
 		actions = []
 
-		# Find actions for initial value
-		if next_value == 1:
-			# 1 is already on the board
-			if next_filled[2] == next_value:
-				return [next_filled]
-
-			for line in state.board.board_repr:
-				for line_i in range(len(line)):
-					row = state.board.board_repr.index(line)
-					col = line_i
-
-					if line[line_i] != 0:
-						continue
-
-					# Manhattan distance is bigger than the difference between the values
-					if abs(next_filled[0] - row) + abs(next_filled[1] - col) > next_filled[2] - next_value:
-						continue
-
-					else:
-						actions.append((row, col, next_value))
-
-		# Find actions for next values
+		if state.action is None:
+			next_value = 1
 		else:
-			adj_positions = state.board.get_adjacent_positions(state.position[0], state.position[1])
+			next_value = state.action[2] + 1
 
-			# If next value is already filled
-			if next_filled is not None and next_filled[2] == next_value:
-				# In adjacent position
-				if (next_filled[0], next_filled[1]) in adj_positions:
-					actions.append(next_filled)
+		# If next value in board
+		if next_value in state.board.filled:
+			row, col = state.board.filled[next_value]
+			return [(row, col, next_value)]
 
-			else:
-				for pos in adj_positions:
-					row = pos[0]
-					col = pos[1]
+		# Get next filled values
+		next_filled = None
+		for value_filled in state.board.filled:
+			if value_filled > next_value:
+				row, col = state.board.filled[value_filled]
+				next_filled = (row, col, value_filled)
+				break
+
+		possible_positions = []
+		# All available positions for 1
+		if next_value == 1:
+			for line in state.board.board_repr:
+				for col in range(len(line)):
+					row = state.board.board_repr.index(line)
 
 					if state.board.board_repr[row][col] != 0:
 						continue
 
-					# Manhattan distance is bigger than the difference between the values
-					elif next_filled is not None and abs(next_filled[0] - row) + abs(next_filled[1] - col) > \
-							next_filled[2] - next_value:
-						continue
+					possible_positions += [(row, col)]
 
-					else:
-						actions.append((row, col, next_value))
+		# Adjacent positions to last inserted value
+		else:
+			possible_positions = state.board.get_adjacent_positions(state.action[0], state.action[1])
 
+		for pos in possible_positions:
+			row, col = pos
+
+			# If manhattan distance to next already filled is bigger then the difference of values
+			if next_filled is not None and \
+					abs(next_filled[0] - row) + abs(next_filled[1] - col) > abs(next_filled[2] - next_value):
+				continue
+
+			else:
+				actions.append((row, col, next_value))
+
+		#print(f"{next_value} -> {actions}")
 		return actions
 
 	def result(self, state: NumbrixState, action) -> NumbrixState:
@@ -180,12 +169,14 @@ class Numbrix(Problem):
 		self.actions(state). """
 
 		# Copy
-		board_copy = Board(board.n)
-		board_copy.board_repr = [x[:] for x in state.board.board_repr] # copy
-		board_copy.filled = state.board.filled
+		row, col, value = action
+		new_board = Board()
+		new_board.filled = state.board.filled
+		new_board.board_repr = state.board.board_repr.copy()
+		new_board.board_repr[row] = state.board.board_repr[row].copy()
+		new_board.board_repr[row][col] = value
+		new_state = NumbrixState(new_board, action)
 
-		new_state = NumbrixState(board_copy, (action[0], action[1]), action[2])
-		new_state.board.board_repr[action[0]][action[1]] = action[2]
 		return new_state
 
 	def goal_test(self, state: NumbrixState) -> bool:
@@ -193,8 +184,11 @@ class Numbrix(Problem):
 		um estado objetivo. Deve verificar se todas as posições do tabuleiro
 		estão preenchidas com uma sequência de números adjacentes. """
 
+		#print(state.board.to_string())
+
+		last_value = len(state.board.board_repr) ** 2
 		# Last value hasn't been but
-		if state.value != state.board.n ** 2:
+		if state.action is None or state.action[2] != last_value:
 			return False
 
 		for line in state.board.board_repr:
@@ -211,27 +205,62 @@ class Numbrix(Problem):
 				if value == 1 and value + 1 in adj_values:
 					continue
 
-				elif value == state.board.n ** 2 and value - 1 in adj_values:
+				elif value == last_value and value - 1 in adj_values:
 					continue
 
 				elif value + 1 not in adj_values or value - 1 not in adj_values:
 					return False
-
 		return True
 
-	def h(self, node: Node) -> int:
-		""" Função heuristica utilizada para a procura A*. """
+	def h(self, node: Node) -> float:
 
-		return (node.state.board.n ** 2 - node.state.value) * (1.0 + 1 / node.state.board.n ** 2)
+		state = node.state
+		board = node.state.board
+		path_cost = len(board.board_repr) ** 2
+		if node.state.action is None:
+			return path_cost
+
+		last_put = state.action[2]
+		last_filled = list(board.filled.keys())[-1]
+		lrow, lcol = board.filled[last_filled]
+
+		# Check valid board
+		for line in board.board_repr:
+			for col in range(len(line)):
+				if line[col] != 0:
+					continue
+
+				row = board.board_repr.index(line)
+
+				adj_values = board.adjacent_vertical_numbers(row, col) + board.adjacent_horizontal_numbers(row, col)
+
+				# Count adj values
+				zero = minor = major = 0
+				for value in adj_values:
+					if value == 0:
+						zero += 1
+
+					elif value is None or value < last_put:
+						minor += 1
+
+					else:
+						major += 1
+
+				if zero == 1 and minor == 3 and abs(row - lrow) + abs(col-lcol) > path_cost - last_filled:
+					return float('inf')
+				elif minor == 4:
+					return float('inf')
+
+		return path_cost - last_put
 
 
 # TODO: outros metodos da classe
 
 if __name__ == "__main__":
-	board = Board.parse_instance(argv[1])
+	bord = Board.parse_instance(argv[1])
 	# print("Initial:\n", board.to_string(), sep="")
 	# print(board.filled)
 
-	problem = Numbrix(board)
-	goal_node = astar_search(problem)
+	problem = Numbrix(bord)
+	goal_node = greedy_search(problem)
 	print(goal_node.state.board.to_string(), end='')
