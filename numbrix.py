@@ -9,64 +9,70 @@
 from search import Problem, Node, astar_search, breadth_first_tree_search, depth_first_tree_search, greedy_search, \
 	recursive_best_first_search
 from sys import argv
+import numpy as np
+
 
 class NumbrixState:
 	state_id = 0
 
-	def __init__(self, board, action=None):
+	def __init__(self, board, position=None):
 		self.board = board
-		self.action = action
+		self.position = position
 		self.id = NumbrixState.state_id
 		NumbrixState.state_id += 1
 
 	def __lt__(self, other):
 		return self.id < other.id
 
-
 # TODO: outros metodos da classe
-
 
 class Board:
 	""" Representação interna de um tabuleiro de Numbrix. """
 
-	def __init__(self):
-		self.board_repr = []
+	def __init__(self, n):
+		self.board_repr = np.zeros((n, n), dtype=int)
 		self.filled = {}
+
+	def size(self):
+		return len(self.board_repr)
+
+	def change_entry(self, row, col, value):
+		self.board_repr[row, col] = value
 
 	def get_number(self, row: int, col: int) -> int:
 		""" Devolve o valor na respetiva posição do tabuleiro. """
-		return self.board_repr[row][col]
+		return self.board_repr[row, col]
 
-	def get_adjacent_positions(self, row: int, col: int) -> [(int, int)]:
+	def adjacent_empty_positions(self, row: int, col: int) -> [(int, int)]:
 		n = len(self.board_repr)
 		adjacent_positions = [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]
 		return [pos for pos in adjacent_positions if
 				pos[0] in range(n) and
 				pos[1] in range(n) and
-				self.board_repr[pos[0]][pos[1]] == 0]
+				self.get_number(pos[0], pos[1]) == 0]
 
-	def adjacent_values(self, row: int, col: int):
+	def adjacent_numbers(self, row: int, col: int):
 		return self.adjacent_vertical_numbers(row, col) + self.adjacent_horizontal_numbers(row, col)
 
 	def adjacent_vertical_numbers(self, row: int, col: int) -> (int, int):
 		""" Devolve os valores imediatamente abaixo e acima,
 		respectivamente. """
 		if row == 0:
-			return (None, self.board_repr[row + 1][col])
+			return (None, self.get_number(row + 1, col))
 		elif row == len(self.board_repr) - 1:
-			return (self.board_repr[row - 1][col], None)
+			return (self.get_number(row - 1, col), None)
 		else:
-			return (self.board_repr[row - 1][col], self.board_repr[row + 1][col])
+			return (self.get_number(row - 1, col), self.get_number(row + 1, col))
 
 	def adjacent_horizontal_numbers(self, row: int, col: int) -> (int, int):
 		""" Devolve os valores imediatamente à esquerda e à direita,
 		respectivamente. """
 		if col == 0:
-			return (None, self.board_repr[row][col + 1])
+			return (None, self.get_number(row, col + 1))
 		elif col == len(self.board_repr) - 1:
-			return (self.board_repr[row][col - 1], None)
+			return (self.get_number(row, col - 1), None)
 		else:
-			return (self.board_repr[row][col - 1], self.board_repr[row][col + 1])
+			return (self.get_number(row, col - 1), self.get_number(row, col + 1))
 
 	@staticmethod
 	def parse_instance(filename: str):
@@ -75,18 +81,18 @@ class Board:
 
 		# Read file
 		with open(filename, "r") as f:
-			board = Board()
 			n = int(f.readline())
-			for line in f:
-				board.board_repr.append(list(map(int, line.rstrip("\n").split("\t"))))
+			board = Board(n)
+			for line, i in zip(f, range(n)):
+				board.board_repr[i] = (list(map(int, line.rstrip("\n").split("\t"))))
 
 		# Get filled positions
 		aux = {}
-		for line in board.board_repr:
-			for value in line:
+		n = len(board.board_repr)
+		for row in range(n):
+			for col in range(n):
+				value = board.get_number(row, col)
 				if value != 0:
-					row = board.board_repr.index(line)
-					col = line.index(value)
 					aux[value] = (row, col)
 
 		for key in sorted(aux):
@@ -116,40 +122,43 @@ class Numbrix(Problem):
 		partir do estado passado como argumento. """
 
 		actions = []
+		board = state.board
+		n = board.size()
 
-		if state.action is None:
+		if state.position is None:
 			next_value = 1
 		else:
-			next_value = state.action[2] + 1
+			row, col = state.position
+			next_value = board.get_number(row, col) + 1
 
 		# If next value in board
-		if next_value in state.board.filled:
-			row, col = state.board.filled[next_value]
+		if next_value in board.filled:
+			row, col = board.filled[next_value]
 			return [(row, col, next_value)]
 
 		# Get next filled values
-		next_filled = None
-		for value_filled in state.board.filled:
-			if value_filled > next_value:
-				row, col = state.board.filled[value_filled]
-				next_filled = (row, col, value_filled)
-				break
+		bigger_values_filled = [filled_value for filled_value in board.filled if filled_value > next_value]
+		if len(bigger_values_filled) == 0:
+			next_filled = None
+		else:
+			value = bigger_values_filled[0]
+			row, col = board.filled[value]
+			next_filled = (row, col, value)
 
 		possible_positions = []
 		# All available positions for 1
 		if next_value == 1:
-			for line in state.board.board_repr:
-				for col in range(len(line)):
-					row = state.board.board_repr.index(line)
-
-					if state.board.board_repr[row][col] != 0:
+			for row in range(n):
+				for col in range(n):
+					if board.get_number(row, col) != 0:
 						continue
 
-					possible_positions += [(row, col)]
+					possible_positions.append((row, col))
 
 		# Adjacent positions to last inserted value
 		else:
-			possible_positions = state.board.get_adjacent_positions(state.action[0], state.action[1])
+			row, col = state.position
+			possible_positions = state.board.adjacent_empty_positions(row, col)
 
 		for pos in possible_positions:
 			row, col = pos
@@ -171,14 +180,17 @@ class Numbrix(Problem):
 		das presentes na lista obtida pela execução de
 		self.actions(state). """
 
-		# Copy
+		board = state.board
 		row, col, value = action
-		new_board = Board()
-		new_board.filled = state.board.filled
-		new_board.board_repr = state.board.board_repr.copy()
-		new_board.board_repr[row] = state.board.board_repr[row].copy()
-		new_board.board_repr[row][col] = value
-		new_state = NumbrixState(new_board, action)
+
+		# Create new board with action applied
+		new_board = Board(board.size())
+		new_board.filled = board.filled
+		new_board.board_repr = board.board_repr.copy()
+		new_board.change_entry(row, col, value)
+
+		# Create new state with the new board
+		new_state = NumbrixState(new_board, (row, col))
 
 		return new_state
 
@@ -188,56 +200,54 @@ class Numbrix(Problem):
 		estão preenchidas com uma sequência de números adjacentes. """
 
 		#print(state.board.to_string())
+		board = state.board
+		n = board.size()
 
-		last_value = len(state.board.board_repr) ** 2
 		# Last value hasn't been but
-		if state.action is None or state.action[2] != last_value:
+		if state.position is None or board.get_number(state.position[0], state.position[1]) != n ** 2:
 			return False
 
-		for line in state.board.board_repr:
-			for value in line:
-				row = state.board.board_repr.index(line)
-				col = line.index(value)
+		for row in range(n):
+			for col in range(n):
+				value = board.get_number(row, col)
 
 				if value == 0:
 					return False
 
-				adj_values = state.board.adjacent_horizontal_numbers(row, col) + state.board.adjacent_vertical_numbers(
-					row, col)
+				adj_values = board.adjacent_numbers(row, col)
 
 				if value == 1 and value + 1 in adj_values:
 					continue
 
-				elif value == last_value and value - 1 in adj_values:
+				elif value == n ** 2 and value - 1 in adj_values:
 					continue
 
 				elif value + 1 not in adj_values or value - 1 not in adj_values:
 					return False
+
 		return True
 
 	def h(self, node: Node) -> float:
-		state = node.state
 		board = node.state.board
 
-		path_cost = len(board.board_repr) ** 2
-		if node.state.action is None:
+		path_cost = board.size() ** 2
+		if node.action is None:
 			return path_cost
 
-		last_put = state.action[2]
-
+		value_put = node.action[2]
 		if node.parent.action is None:
-			return path_cost - last_put
+			return path_cost - value_put
 
 		last_filled = list(board.filled.keys())[-1]
 		lrow, lcol = board.filled[last_filled]
 
-		# Check if there is invalid position next to parent
-		adj_parent = board.get_adjacent_positions(node.parent.action[0], node.parent.action[1])
+		# Check if it creates an invalid position next to parent
+		adj_parent = board.adjacent_empty_positions(node.parent.action[0], node.parent.action[1])
 		for pos in adj_parent:
 			row = pos[0]
 			col = pos[1]
 
-			adj_values = board.adjacent_values(row, col)
+			adj_values = board.adjacent_numbers(row, col)
 
 			# Count adj values
 			zero = minor = major = 0
@@ -245,13 +255,13 @@ class Numbrix(Problem):
 				if value == 0:
 					zero += 1
 
-				elif value is None or value < last_put:
+				elif value is None or value < value_put:
 					minor += 1
 
 				else:
 					major += 1
 
-			if zero == 1 and minor == 3 and abs(row - lrow) + abs(col-lcol) > path_cost - last_filled:
+			if zero == 1 and minor == 3 and abs(row - lrow) + abs(col - lcol) > path_cost - last_filled:
 				return float('inf')
 
 			elif minor == 4:
@@ -260,50 +270,14 @@ class Numbrix(Problem):
 			elif zero == 0 and major == 1 and last_filled not in adj_values:
 				return float('inf')
 
-		# Get next filled value
-		next_filled = None
-		for value_filled in state.board.filled:
-			if value_filled > node.action[2]:
-				row, col = state.board.filled[value_filled]
-				next_filled = (row, col, value_filled)
-				break
-
-		# # Check if path to next filled value exists
-		# if next_filled is not None:
-		# 	frontier = [node.action]
-		#
-		# 	while frontier:
-		# 		node = frontier.pop()
-		# 		path_length = abs(next_filled[0] - node[0]) + abs(next_filled[1] - node[1])
-		#
-		# 		adj_values = board.adjacent_values(node[0], node[1])
-		# 		if next_filled[2] in adj_values:
-		# 			return path_cost - last_put
-		#
-		# 		adj = board.get_adjacent_positions(node[0], node[1])
-		# 		for pos in adj:
-		# 			pos_dist = abs(next_filled[0] - pos[0]) + abs(next_filled[1] - pos[1])
-		# 			value = node[2] + 1
-		#
-		# 			if pos_dist > abs(next_filled[2] - value):
-		# 				continue
-		#
-		# 			elif pos_dist > path_length:
-		# 				continue
-		#
-		# 			frontier.append((pos[0], pos[1], value))
-		# else:
-
-		return path_cost - last_put
-
-
+		return path_cost - value_put
 
 
 # TODO: outros metodos da classe
 
 if __name__ == "__main__":
 	bord = Board.parse_instance(argv[1])
-	#bord = Board.parse_instance("tests/input2.txt")
+    #bord = Board.parse_instance("tests/input7.txt")
 	# print("Initial:\n", board.to_string(), sep="")
 	# print(board.filled)
 
