@@ -45,6 +45,9 @@ class Board:
 				pos[1] in range(n) and
 				self.board_repr[pos[0]][pos[1]] == 0]
 
+	def adjacent_values(self, row: int, col: int):
+		return self.adjacent_vertical_numbers(row, col) + self.adjacent_horizontal_numbers(row, col)
+
 	def adjacent_vertical_numbers(self, row: int, col: int) -> (int, int):
 		""" Devolve os valores imediatamente abaixo e acima,
 		respectivamente. """
@@ -213,54 +216,97 @@ class Numbrix(Problem):
 		return True
 
 	def h(self, node: Node) -> float:
-
 		state = node.state
 		board = node.state.board
+
 		path_cost = len(board.board_repr) ** 2
 		if node.state.action is None:
 			return path_cost
 
 		last_put = state.action[2]
+
+		if node.parent.action is None:
+			return path_cost - last_put
+
 		last_filled = list(board.filled.keys())[-1]
 		lrow, lcol = board.filled[last_filled]
 
-		# Check valid board
-		for line in board.board_repr:
-			for col in range(len(line)):
-				if line[col] != 0:
-					continue
+		# Check if there is invalid position next to parent
+		adj_parent = board.get_adjacent_positions(node.parent.action[0], node.parent.action[1])
+		for pos in adj_parent:
+			row = pos[0]
+			col = pos[1]
 
-				row = board.board_repr.index(line)
+			adj_values = board.adjacent_values(row, col)
 
-				adj_values = board.adjacent_vertical_numbers(row, col) + board.adjacent_horizontal_numbers(row, col)
+			# Count adj values
+			zero = minor = major = 0
+			for value in adj_values:
+				if value == 0:
+					zero += 1
 
-				# Count adj values
-				zero = minor = major = 0
-				for value in adj_values:
-					if value == 0:
-						zero += 1
+				elif value is None or value < last_put:
+					minor += 1
 
-					elif value is None or value < last_put:
-						minor += 1
+				else:
+					major += 1
 
-					else:
-						major += 1
+			if zero == 1 and minor == 3 and abs(row - lrow) + abs(col-lcol) > path_cost - last_filled:
+				return float('inf')
 
-				if zero == 1 and minor == 3 and abs(row - lrow) + abs(col-lcol) > path_cost - last_filled:
-					return float('inf')
-				elif minor == 4:
-					return float('inf')
+			elif minor == 4:
+				return float('inf')
+
+			elif zero == 0 and major == 1 and last_filled not in adj_values:
+				return float('inf')
+
+		# Get next filled value
+		next_filled = None
+		for value_filled in state.board.filled:
+			if value_filled > node.action[2]:
+				row, col = state.board.filled[value_filled]
+				next_filled = (row, col, value_filled)
+				break
+
+		# # Check if path to next filled value exists
+		# if next_filled is not None:
+		# 	frontier = [node.action]
+		#
+		# 	while frontier:
+		# 		node = frontier.pop()
+		# 		path_length = abs(next_filled[0] - node[0]) + abs(next_filled[1] - node[1])
+		#
+		# 		adj_values = board.adjacent_values(node[0], node[1])
+		# 		if next_filled[2] in adj_values:
+		# 			return path_cost - last_put
+		#
+		# 		adj = board.get_adjacent_positions(node[0], node[1])
+		# 		for pos in adj:
+		# 			pos_dist = abs(next_filled[0] - pos[0]) + abs(next_filled[1] - pos[1])
+		# 			value = node[2] + 1
+		#
+		# 			if pos_dist > abs(next_filled[2] - value):
+		# 				continue
+		#
+		# 			elif pos_dist > path_length:
+		# 				continue
+		#
+		# 			frontier.append((pos[0], pos[1], value))
+		# else:
 
 		return path_cost - last_put
+
+
 
 
 # TODO: outros metodos da classe
 
 if __name__ == "__main__":
 	bord = Board.parse_instance(argv[1])
+	#bord = Board.parse_instance("tests/input2.txt")
 	# print("Initial:\n", board.to_string(), sep="")
 	# print(board.filled)
 
 	problem = Numbrix(bord)
-	goal_node = greedy_search(problem)
+	goal_node = recursive_best_first_search(problem)
 	print(goal_node.state.board.to_string(), end='')
