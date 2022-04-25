@@ -1,10 +1,6 @@
-# numbrix.py: Template para implementação do projeto de Inteligência Artificial 2021/2022.
-# Devem alterar as classes e funções neste ficheiro de acordo com as instruções do enunciado.
-# Além das funções e classes já definidas, podem acrescentar outras que considerem pertinentes.
-
-# Grupo 00:
-# 00000 Nome1
-# 00000 Nome2
+# Grupo 68:
+# 95665 Rodrigo Gonçalves
+# 95683 Tomás Phillipart
 
 from search import Problem, Node, astar_search, breadth_first_tree_search, depth_first_tree_search, greedy_search, \
 	recursive_best_first_search
@@ -24,7 +20,6 @@ class NumbrixState:
 	def __lt__(self, other):
 		return self.id < other.id
 
-# TODO: outros metodos da classe
 
 class Board:
 	""" Representação interna de um tabuleiro de Numbrix. """
@@ -34,16 +29,23 @@ class Board:
 		self.filled = {}
 
 	def size(self):
+		"""Devolve o tamanho da board"""
+
 		return len(self.board_repr)
 
 	def change_entry(self, row, col, value):
+		"""Muda uma entrada na board"""
+
 		self.board_repr[row, col] = value
 
 	def get_number(self, row: int, col: int) -> int:
 		""" Devolve o valor na respetiva posição do tabuleiro. """
+
 		return self.board_repr[row, col]
 
 	def adjacent_empty_positions(self, row: int, col: int) -> [(int, int)]:
+		"""Devolve as posições adjacentes vazias"""
+
 		n = len(self.board_repr)
 		adjacent_positions = [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]
 		return [pos for pos in adjacent_positions if
@@ -52,11 +54,14 @@ class Board:
 				self.get_number(pos[0], pos[1]) == 0]
 
 	def adjacent_numbers(self, row: int, col: int):
+		"""Devolve todos os valores adjacentes"""
+
 		return self.adjacent_vertical_numbers(row, col) + self.adjacent_horizontal_numbers(row, col)
 
 	def adjacent_vertical_numbers(self, row: int, col: int) -> (int, int):
 		""" Devolve os valores imediatamente abaixo e acima,
 		respectivamente. """
+
 		if row == 0:
 			return (None, self.get_number(row + 1, col))
 		elif row == len(self.board_repr) - 1:
@@ -114,6 +119,7 @@ class Board:
 class Numbrix(Problem):
 	def __init__(self, board: Board):
 		""" O construtor especifica o estado inicial. """
+
 		self.initial = NumbrixState(board)
 		pass
 
@@ -171,7 +177,6 @@ class Numbrix(Problem):
 			else:
 				actions.append((row, col, next_value))
 
-		#print(f"{next_value} -> {actions}")
 		return actions
 
 	def result(self, state: NumbrixState, action) -> NumbrixState:
@@ -199,11 +204,10 @@ class Numbrix(Problem):
 		um estado objetivo. Deve verificar se todas as posições do tabuleiro
 		estão preenchidas com uma sequência de números adjacentes. """
 
-		#print(state.board.to_string())
 		board = state.board
 		n = board.size()
 
-		# Last value hasn't been but
+		# Last value hasn't been put
 		if state.position is None or board.get_number(state.position[0], state.position[1]) != n ** 2:
 			return False
 
@@ -249,7 +253,7 @@ class Numbrix(Problem):
 
 			adj_values = board.adjacent_numbers(row, col)
 
-			# Count adj values
+			# Classify adjacent values
 			zero = minor = major = 0
 			for value in adj_values:
 				if value == 0:
@@ -261,25 +265,19 @@ class Numbrix(Problem):
 				else:
 					major += 1
 
+			# Check the existence of dead ends
 			if zero == 1 and minor == 3 and abs(row - lrow) + abs(col - lcol) > path_cost - last_filled:
 				return float('inf')
 
+			# Check the existence an entry surrounded by smaller values
 			elif minor == 4:
-				return float('inf')
-
-			elif zero == 0 and major == 1 and last_filled not in adj_values:
 				return float('inf')
 
 		return path_cost - value_put
 
 
-# TODO: outros metodos da classe
-
 if __name__ == "__main__":
 	bord = Board.parse_instance(argv[1])
-    #bord = Board.parse_instance("tests/input7.txt")
-	# print("Initial:\n", board.to_string(), sep="")
-	# print(board.filled)
 
 	problem = Numbrix(bord)
 	goal_node = recursive_best_first_search(problem)
