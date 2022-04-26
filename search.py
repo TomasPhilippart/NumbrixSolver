@@ -11,6 +11,8 @@ from collections import deque
 
 from utils import *
 
+import time
+
 
 class Problem:
     """The abstract class for a formal problem. You should subclass
@@ -1524,6 +1526,7 @@ class InstrumentedProblem(Problem):
         self.problem = problem
         self.succs = self.goal_tests = self.states = 0
         self.found = None
+        self.time = 0
 
     def actions(self, state):
         self.succs += 1
@@ -1550,16 +1553,15 @@ class InstrumentedProblem(Problem):
         return getattr(self.problem, attr)
 
     def __repr__(self):
-        return '<{:4d}/{:4d}/{:4d}/{}>'.format(self.succs, self.goal_tests,
+        return '<{:4f}/{:4d}/{:4d}/{}>'.format(self.time, self.goal_tests,
                                                self.states, str(self.found)[:4])
 
 
 def compare_searchers(problems, header,
-                      searchers=[breadth_first_tree_search,
-                                 breadth_first_graph_search,
-                                 depth_first_graph_search,
-                                 iterative_deepening_search,
-                                 depth_limited_search,
+                      searchers=[breadth_first_graph_search,
+                                 depth_first_tree_search,
+                                 greedy_search,
+                                 astar_search,
                                  recursive_best_first_search]):
     def do(searcher, problem):
         p = InstrumentedProblem(problem)

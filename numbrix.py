@@ -7,6 +7,8 @@ from search import Problem, Node, astar_search, breadth_first_tree_search, depth
 from sys import argv
 import numpy as np
 
+from search import *
+
 
 class NumbrixState:
 	state_id = 0
@@ -276,9 +278,46 @@ class Numbrix(Problem):
 		return path_cost - value_put
 
 
-if __name__ == "__main__":
-	bord = Board.parse_instance(argv[1])
 
-	problem = Numbrix(bord)
-	goal_node = recursive_best_first_search(problem)
-	print(goal_node.state.board.to_string(), end='')
+
+
+
+
+def compare_searchers(problems, header,
+					  searchers=[breadth_first_tree_search,
+								 depth_first_tree_search,
+								 greedy_search,
+								 astar_search,
+								 recursive_best_first_search]):
+	def do(searcher, problem):
+		start = time.time()
+		p = InstrumentedProblem(problem)
+		searcher(p)
+		end = time.time()
+		p.time = end - start
+		return p
+
+	table = [[name(s)] + [do(s, p) for p in problems] for s in searchers]
+	print_table(table, header)
+
+
+def compare__searchers():
+	"""Prints a table of search results."""
+	compare_searchers(problems=[Numbrix(Board.parse_instance(argv[1]))],
+					  header=['Searcher', 'Test 1', 'Test 2',
+							  'Test 3', 'Test 4', 'Test 5',
+							  'Test 6', 'Test 7', 'Test 8', 'Test 9', 'Test 10'])
+
+
+
+if __name__ == "__main__":
+	# bord = Board.parse_instance(argv[1])
+	#
+	# problem = Numbrix(bord)
+	# goal_node = breadth_first_tree_search(problem)
+	# print(goal_node.state.board.to_string(), end='')
+
+	compare__searchers()
+
+
+
