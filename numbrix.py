@@ -304,9 +304,7 @@ def compare_searchers(problems, header,
 def compare__searchers():
 	"""Prints a table of search results."""
 	compare_searchers(problems=[Numbrix(Board.parse_instance(argv[1]))],
-					  header=['Searcher', 'Test 1', 'Test 2',
-							  'Test 3', 'Test 4', 'Test 5',
-							  'Test 6', 'Test 7', 'Test 8', 'Test 9', 'Test 10'])
+					  header=['Searcher', argv[1]])
 
 
 
